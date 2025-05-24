@@ -1,0 +1,3 @@
+{'id_animal': 1, 'email_adotante': 'comun@gmail.com', 'data': '16/05/2025 10:25', 'status': 'em andamento', 'relatorios': [{'data': '16/05/2025 10:26', 'texto': 'otima, ele está se adptando bem'}]}
+{'id_animal': 2, 'email_adotante': 'adm@gmail.com', 'data': '16/05/2025 11:34', 'status': 'em andamento', 'relatorios': []}
+{'id_animal': 3, 'email_adotante': 'comun@gmail.com', 'data': '16/05/2025 12:35', 'status': 'em andamento', 'relatorios': [{'data': '16/05/2025 12:36', 'texto': 'animal se adaptando bem', 'autor': 'comun@gmail.com'}], 'info_animal': {'nome': 'cao', 'tipo': 'cachorro', 'raca': 'nao etm', 'caracteristicas': 'grande e forte'}}

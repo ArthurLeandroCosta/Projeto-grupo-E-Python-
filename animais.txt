@@ -1,0 +1,3 @@
+{'id': 1, 'tipo': 'cachorro', 'nome': 'pet', 'idade': 3, 'raca': 'vira lata', 'temperamento': 'agitado', 'caracteristicas': 'branco e pequeno', 'disponivel': False, 'data_cadastro': '16/05/2025 10:25', 'cadastrado_por': 'adm@gmail.com'}
+{'id': 2, 'tipo': 'gato', 'nome': 'gatinho', 'idade': 5, 'raca': 'não tem raça', 'temperamento': 'calmo', 'caracteristicas': 'pequeno e escuro', 'disponivel': False, 'data_cadastro': '16/05/2025 11:34', 'cadastrado_por': 'adm@gmail.com'}
+{'id': 3, 'tipo': 'cachorro', 'nome': 'cao', 'idade': 3, 'raca': 'nao etm', 'temperamento': 'agressivo', 'caracteristicas': 'grande e forte', 'disponivel': False, 'data_cadastro': '16/05/2025 12:34', 'cadastrado_por': 'adm@gmail.com'}
