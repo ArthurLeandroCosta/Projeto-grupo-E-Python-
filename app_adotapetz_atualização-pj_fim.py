@@ -8,6 +8,9 @@ USUARIOS_FILE = "usuarios.txt"
 ANIMAIS_FILE = "animais.txt"
 ADOCAO_FILE = "adocoes.txt"
 
+# Chave de segurança para cadastro de administrador
+CHAVE_ADMIN = "@dM1n2025n0Vo"
+
 # Funções para manipular arquivos
 def carregar_dados(arquivo):
     dados = []
@@ -31,7 +34,7 @@ class AdotaPetzApp:
     def __init__(self, root):
         self.root = root
         self.root.title("AdotaPetz - Sistema de Adoção")
-        self.root.geometry("800x600")
+        self.root.geometry("1000x700")
         self.usuario_logado = None
         
         # Configurar estilo
@@ -88,6 +91,11 @@ class AdotaPetzApp:
         self.telefone_entry = ttk.Entry(form_frame, width=30)
         self.telefone_entry.grid(row=3, column=1, padx=5, pady=5)
         
+        ttk.Label(form_frame, text="Tipo de usuário:").grid(row=4, column=0, padx=5, pady=5, sticky=tk.E)
+        self.tipo_usuario_var = tk.StringVar(value="comum")
+        ttk.Radiobutton(form_frame, text="Usuário Comum", variable=self.tipo_usuario_var, value="comum").grid(row=4, column=1, padx=5, pady=5, sticky=tk.W)
+        ttk.Radiobutton(form_frame, text="Administrador", variable=self.tipo_usuario_var, value="admin").grid(row=5, column=1, padx=5, pady=5, sticky=tk.W)
+        
         # Botões
         button_frame = ttk.Frame(self.main_frame)
         button_frame.pack(pady=20)
@@ -100,10 +108,33 @@ class AdotaPetzApp:
         senha = self.senha_entry.get()
         nome = self.nome_entry.get()
         telefone = self.telefone_entry.get()
+        tipo_usuario = self.tipo_usuario_var.get()
         
         if not all([email, senha, nome, telefone]):
             messagebox.showerror("Erro", "Todos os campos são obrigatórios!")
             return
+        
+        # Verificar chave de segurança se for admin
+        if tipo_usuario == "admin":
+            tentativas = 3
+            chave_correta = False
+            
+            while tentativas > 0:
+                chave = simpledialog.askstring("Chave de Segurança", 
+                                             f"Digite a chave de segurança para administrador ({tentativas} tentativas restantes):", 
+                                             show='*')
+                
+                if chave == CHAVE_ADMIN:
+                    chave_correta = True
+                    break
+                    
+                tentativas -= 1
+                if tentativas > 0:
+                    messagebox.showerror("Erro", f"Chave de segurança incorreta! Você tem {tentativas} tentativa(s) restante(s).")
+            
+            if not chave_correta:
+                messagebox.showerror("Erro", "Número máximo de tentativas excedido. Cadastro cancelado.")
+                return
         
         usuarios = carregar_dados(USUARIOS_FILE)
         if any(isinstance(u, dict) and u.get('email') == email for u in usuarios):
@@ -114,7 +145,8 @@ class AdotaPetzApp:
             'email': email,
             'senha': senha,
             'nome': nome,
-            'telefone': telefone
+            'telefone': telefone,
+            'tipo': tipo_usuario
         }
         
         usuarios.append(novo_usuario)
@@ -166,13 +198,134 @@ class AdotaPetzApp:
         ttk.Label(self.main_frame, text=f"Bem-vindo, {self.usuario_logado.get('nome', 'Usuário')}", style='Title.TLabel').pack(pady=20)
         
         # Botões do menu
-        ttk.Button(self.main_frame, text="Cadastrar Animal", command=self.mostrar_tela_cadastro_animal).pack(pady=10, ipadx=20, ipady=5)
+        if self.usuario_logado.get('tipo') == 'admin':
+            ttk.Button(self.main_frame, text="Cadastrar Animal", command=self.mostrar_tela_cadastro_animal).pack(pady=10, ipadx=20, ipady=5)
+            ttk.Button(self.main_frame, text="Gerenciar Usuários", command=self.mostrar_gerenciar_usuarios).pack(pady=10, ipadx=20, ipady=5)
+        
         ttk.Button(self.main_frame, text="Listar Animais Disponíveis", command=self.mostrar_lista_animais).pack(pady=10, ipadx=20, ipady=5)
         ttk.Button(self.main_frame, text="Adotar Animal", command=self.mostrar_tela_adocao).pack(pady=10, ipadx=20, ipady=5)
         ttk.Button(self.main_frame, text="Acompanhamento Pós-Adoção", command=self.mostrar_acompanhamento).pack(pady=10, ipadx=20, ipady=5)
         ttk.Button(self.main_frame, text="Sair", command=self.fazer_logout).pack(pady=20, ipadx=20, ipady=5)
     
+    def mostrar_gerenciar_usuarios(self):
+        if self.usuario_logado.get('tipo') != 'admin':
+            messagebox.showerror("Acesso negado", "Apenas administradores podem gerenciar usuários!")
+            return
+            
+        self.limpar_tela()
+        
+        ttk.Label(self.main_frame, text="Gerenciar Usuários", style='Title.TLabel').pack(pady=20)
+        
+        usuarios = carregar_dados(USUARIOS_FILE)
+        
+        if not usuarios:
+            ttk.Label(self.main_frame, text="Nenhum usuário cadastrado.").pack(pady=20)
+        else:
+            # Criar Treeview (tabela)
+            tree_frame = ttk.Frame(self.main_frame)
+            tree_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+            
+            scrollbar = ttk.Scrollbar(tree_frame)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            
+            self.tree_usuarios = ttk.Treeview(tree_frame, 
+                                           columns=('Email', 'Nome', 'Telefone', 'Tipo'), 
+                                           show='headings', 
+                                           yscrollcommand=scrollbar.set)
+            
+            # Configurar colunas
+            self.tree_usuarios.column('Email', width=200, anchor=tk.W)
+            self.tree_usuarios.column('Nome', width=200, anchor=tk.W)
+            self.tree_usuarios.column('Telefone', width=150, anchor=tk.W)
+            self.tree_usuarios.column('Tipo', width=100, anchor=tk.W)
+            
+            # Cabeçalhos
+            self.tree_usuarios.heading('Email', text='Email')
+            self.tree_usuarios.heading('Nome', text='Nome')
+            self.tree_usuarios.heading('Telefone', text='Telefone')
+            self.tree_usuarios.heading('Tipo', text='Tipo')
+            
+            # Adicionar dados
+            for usuario in usuarios:
+                if isinstance(usuario, dict):
+                    self.tree_usuarios.insert('', tk.END, values=(
+                        usuario.get('email', ''),
+                        usuario.get('nome', ''),
+                        usuario.get('telefone', ''),
+                        usuario.get('tipo', '')
+                    ), tags=(usuario.get('tipo', ''),))
+            
+            self.tree_usuarios.pack(fill=tk.BOTH, expand=True)
+            scrollbar.config(command=self.tree_usuarios.yview)
+            
+            # Botão para alterar tipo de usuário
+            ttk.Button(self.main_frame, text="Alterar Tipo de Usuário", command=self.alterar_tipo_usuario).pack(pady=10)
+        
+        ttk.Button(self.main_frame, text="Voltar", command=self.mostrar_menu_principal).pack(pady=20)
+    
+    def alterar_tipo_usuario(self):
+        selected = self.tree_usuarios.focus()
+        if not selected:
+            messagebox.showerror("Erro", "Selecione um usuário na tabela!")
+            return
+        
+        item = self.tree_usuarios.item(selected)
+        email = item['values'][0]
+        
+        if email == self.usuario_logado.get('email'):
+            messagebox.showerror("Erro", "Você não pode alterar seu próprio tipo de usuário!")
+            return
+        
+        usuarios = carregar_dados(USUARIOS_FILE)
+        usuario = next((u for u in usuarios if isinstance(u, dict) and u.get('email') == email), None)
+        
+        if not usuario:
+            messagebox.showerror("Erro", "Usuário não encontrado!")
+            return
+        
+        novo_tipo = "admin" if usuario.get('tipo') == "comum" else "comum"
+        
+        # Se for para tornar admin, pedir chave de segurança com 3 tentativas
+        if novo_tipo == "admin":
+            tentativas = 3
+            chave_correta = False
+            
+            while tentativas > 0:
+                chave = simpledialog.askstring("Chave de Segurança", 
+                                             f"Digite a chave de segurança para tornar administrador ({tentativas} tentativas restantes):", 
+                                             show='*')
+                
+                if chave == CHAVE_ADMIN:
+                    chave_correta = True
+                    break
+                    
+                tentativas -= 1
+                if tentativas > 0:
+                    messagebox.showerror("Erro", f"Chave de segurança incorreta! Você tem {tentativas} tentativa(s) restante(s).")
+            
+            if not chave_correta:
+                messagebox.showerror("Erro", "Número máximo de tentativas excedido. Operação cancelada.")
+                return
+        
+        usuario['tipo'] = novo_tipo
+        salvar_dados(USUARIOS_FILE, usuarios)
+        
+        # Atualizar a exibição
+        self.tree_usuarios.item(selected, values=(
+            usuario.get('email', ''),
+            usuario.get('nome', ''),
+            usuario.get('telefone', ''),
+            usuario.get('tipo', '')
+        ))
+        
+        messagebox.showinfo("Sucesso", f"Tipo de usuário alterado para {novo_tipo}!")
+        self.mostrar_gerenciar_usuarios()
+    
     def mostrar_tela_cadastro_animal(self):
+        if self.usuario_logado.get('tipo') != 'admin':
+            messagebox.showerror("Acesso negado", "Apenas administradores podem cadastrar animais!")
+            return
+            
         self.limpar_tela()
         
         ttk.Label(self.main_frame, text="Cadastro de Animal", style='Title.TLabel').pack(pady=20)
@@ -213,6 +366,10 @@ class AdotaPetzApp:
         ttk.Button(button_frame, text="Voltar", command=self.mostrar_menu_principal).pack(side=tk.LEFT, padx=10)
     
     def cadastrar_animal(self):
+        if self.usuario_logado.get('tipo') != 'admin':
+            messagebox.showerror("Acesso negado", "Apenas administradores podem cadastrar animais!")
+            return
+            
         tipo = self.tipo_animal.get().lower()
         nome = self.nome_animal_entry.get()
         idade = self.idade_animal_entry.get()
@@ -241,7 +398,8 @@ class AdotaPetzApp:
             'temperamento': temperamento,
             'caracteristicas': caracteristicas,
             'disponivel': True,
-            'data_cadastro': datetime.now().strftime("%d/%m/%Y %H:%M")
+            'data_cadastro': datetime.now().strftime("%d/%m/%Y %H:%M"),
+            'cadastrado_por': self.usuario_logado.get('email')
         }
         
         animais.append(novo_animal)
@@ -268,7 +426,11 @@ class AdotaPetzApp:
             scrollbar = ttk.Scrollbar(tree_frame)
             scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
             
-            self.tree = ttk.Treeview(tree_frame, columns=('ID', 'Nome', 'Tipo', 'Idade', 'Raça'), show='headings', yscrollcommand=scrollbar.set)
+            # Adicionei mais colunas para mostrar as características
+            self.tree = ttk.Treeview(tree_frame, 
+                                   columns=('ID', 'Nome', 'Tipo', 'Idade', 'Raça', 'Temperamento', 'Características'), 
+                                   show='headings', 
+                                   yscrollcommand=scrollbar.set)
             
             # Configurar colunas
             self.tree.column('ID', width=50, anchor=tk.CENTER)
@@ -276,6 +438,8 @@ class AdotaPetzApp:
             self.tree.column('Tipo', width=100, anchor=tk.W)
             self.tree.column('Idade', width=50, anchor=tk.CENTER)
             self.tree.column('Raça', width=150, anchor=tk.W)
+            self.tree.column('Temperamento', width=150, anchor=tk.W)
+            self.tree.column('Características', width=200, anchor=tk.W)
             
             # Cabeçalhos
             self.tree.heading('ID', text='ID')
@@ -283,6 +447,8 @@ class AdotaPetzApp:
             self.tree.heading('Tipo', text='Tipo')
             self.tree.heading('Idade', text='Idade')
             self.tree.heading('Raça', text='Raça')
+            self.tree.heading('Temperamento', text='Temperamento')
+            self.tree.heading('Características', text='Características')
             
             # Adicionar dados
             for animal in disponiveis:
@@ -291,7 +457,9 @@ class AdotaPetzApp:
                     animal.get('nome', ''),
                     animal.get('tipo', '').capitalize(),
                     animal.get('idade', ''),
-                    animal.get('raca', '')
+                    animal.get('raca', ''),
+                    animal.get('temperamento', ''),
+                    animal.get('caracteristicas', '')
                 ))
             
             self.tree.pack(fill=tk.BOTH, expand=True)
@@ -301,18 +469,72 @@ class AdotaPetzApp:
         ttk.Button(self.main_frame, text="Voltar", command=self.mostrar_menu_principal).pack(pady=20)
     
     def mostrar_tela_adocao(self):
-        self.mostrar_lista_animais()  # Reutiliza a tela de listagem
+        self.limpar_tela()
+        
+        ttk.Label(self.main_frame, text="Adotar Animal", style='Title.TLabel').pack(pady=20)
         
         animais = carregar_dados(ANIMAIS_FILE)
         disponiveis = [a for a in animais if isinstance(a, dict) and a.get('disponivel', False)]
         
-        if disponiveis:
-            ttk.Label(self.main_frame, text="Digite o ID do animal que deseja adotar:").pack(pady=10)
+        if not disponiveis:
+            ttk.Label(self.main_frame, text="Nenhum animal disponível no momento.").pack(pady=20)
+        else:
+            # Criar Treeview (tabela)
+            tree_frame = ttk.Frame(self.main_frame)
+            tree_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+            
+            scrollbar = ttk.Scrollbar(tree_frame)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            
+            # Treeview com todas as informações
+            self.tree_adocao = ttk.Treeview(tree_frame, 
+                                          columns=('ID', 'Nome', 'Tipo', 'Idade', 'Raça', 'Temperamento', 'Características'), 
+                                          show='headings', 
+                                          yscrollcommand=scrollbar.set)
+            
+            # Configurar colunas
+            self.tree_adocao.column('ID', width=50, anchor=tk.CENTER)
+            self.tree_adocao.column('Nome', width=150, anchor=tk.W)
+            self.tree_adocao.column('Tipo', width=100, anchor=tk.W)
+            self.tree_adocao.column('Idade', width=50, anchor=tk.CENTER)
+            self.tree_adocao.column('Raça', width=150, anchor=tk.W)
+            self.tree_adocao.column('Temperamento', width=150, anchor=tk.W)
+            self.tree_adocao.column('Características', width=200, anchor=tk.W)
+            
+            # Cabeçalhos
+            self.tree_adocao.heading('ID', text='ID')
+            self.tree_adocao.heading('Nome', text='Nome')
+            self.tree_adocao.heading('Tipo', text='Tipo')
+            self.tree_adocao.heading('Idade', text='Idade')
+            self.tree_adocao.heading('Raça', text='Raça')
+            self.tree_adocao.heading('Temperamento', text='Temperamento')
+            self.tree_adocao.heading('Características', text='Características')
+            
+            # Adicionar dados
+            for animal in disponiveis:
+                self.tree_adocao.insert('', tk.END, values=(
+                    animal.get('id', ''),
+                    animal.get('nome', ''),
+                    animal.get('tipo', '').capitalize(),
+                    animal.get('idade', ''),
+                    animal.get('raca', ''),
+                    animal.get('temperamento', ''),
+                    animal.get('caracteristicas', '')
+                ))
+            
+            self.tree_adocao.pack(fill=tk.BOTH, expand=True)
+            scrollbar.config(command=self.tree_adocao.yview)
+            
+            # Frame para seleção de animal
+            select_frame = ttk.Frame(self.main_frame)
+            select_frame.pack(pady=10)
+            
+            ttk.Label(select_frame, text="Digite o ID do animal que deseja adotar:").pack(side=tk.LEFT, padx=5)
             
             self.id_animal_adocao = tk.StringVar()
-            ttk.Entry(self.main_frame, textvariable=self.id_animal_adocao, width=10).pack(pady=5)
+            ttk.Entry(select_frame, textvariable=self.id_animal_adocao, width=10).pack(side=tk.LEFT, padx=5)
             
-            ttk.Button(self.main_frame, text="Adotar", command=self.realizar_adocao).pack(pady=10)
+            ttk.Button(select_frame, text="Adotar", command=self.realizar_adocao).pack(side=tk.LEFT, padx=10)
         
         ttk.Button(self.main_frame, text="Voltar", command=self.mostrar_menu_principal).pack(pady=20)
     
@@ -330,6 +552,22 @@ class AdotaPetzApp:
             messagebox.showerror("Erro", "Animal não encontrado ou indisponível!")
             return
         
+        # Mostrar informações completas do animal antes de confirmar
+        confirmacao = messagebox.askyesno(
+            "Confirmar Adoção",
+            f"Você está prestes a adotar:\n\n"
+            f"Nome: {animal.get('nome', 'N/A')}\n"
+            f"Tipo: {animal.get('tipo', 'N/A').capitalize()}\n"
+            f"Idade: {animal.get('idade', 'N/A')} anos\n"
+            f"Raça: {animal.get('raca', 'N/A')}\n"
+            f"Temperamento: {animal.get('temperamento', 'N/A')}\n"
+            f"Características: {animal.get('caracteristicas', 'N/A')}\n\n"
+            "Deseja confirmar a adoção?"
+        )
+        
+        if not confirmacao:
+            return
+        
         # Registrar adoção
         adocoes = carregar_dados(ADOCAO_FILE)
         nova_adocao = {
@@ -337,7 +575,13 @@ class AdotaPetzApp:
             'email_adotante': self.usuario_logado.get('email', ''),
             'data': datetime.now().strftime("%d/%m/%Y %H:%M"),
             'status': 'em andamento',
-            'relatorios': []
+            'relatorios': [],
+            'info_animal': {  # Adicionando informações do animal no registro de adoção
+                'nome': animal.get('nome', ''),
+                'tipo': animal.get('tipo', ''),
+                'raca': animal.get('raca', ''),
+                'caracteristicas': animal.get('caracteristicas', '')
+            }
         }
         
         adocoes.append(nova_adocao)
@@ -353,7 +597,8 @@ class AdotaPetzApp:
     def mostrar_acompanhamento(self):
         self.limpar_tela()
         
-        ttk.Label(self.main_frame, text="Acompanhamento Pós-Adoção", style='Title.TLabel').pack(pady=20)
+        # Título principal centralizado
+        ttk.Label(self.main_frame, text="Acompanhamento Pós-Adoção", style='Title.TLabel').pack(pady=20)    
         
         # Verificar se o usuário está logado corretamente
         if not self.usuario_logado or 'email' not in self.usuario_logado:
@@ -361,41 +606,105 @@ class AdotaPetzApp:
             self.mostrar_menu_principal()
             return
         
-        adocoes = carregar_dados(ADOCAO_FILE)
-        animais = carregar_dados(ANIMAIS_FILE)
+        # Criar um frame principal que conterá o canvas e a barra de rolagem
+        container = ttk.Frame(self.main_frame)
+        container.pack(fill=tk.BOTH, expand=True)
         
-        # Filtrar adoções com verificação de chave
-        minhas_adocoes = []
-        for a in adocoes:
-            if isinstance(a, dict) and a.get('email_adotante') == self.usuario_logado['email']:
-                minhas_adocoes.append(a)
+        # Criar um canvas
+        canvas = tk.Canvas(container)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Adicionar barra de rolagem
+        scrollbar = ttk.Scrollbar(container, orient=tk.VERTICAL, command=canvas.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Configurar o canvas
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Criar um frame dentro do canvas para colocar os widgets
+        scrollable_frame = ttk.Frame(canvas)
+        
+        # Centralizar o scrollable_frame dentro do canvas.
+        # Definir a largura do scrollable_frame para ser igual à do canvas
+        # e ligar o evento de redimensionamento do canvas para ajustar o scrollable_frame.
+        def _on_frame_configure(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            # Ensure the scrollable_frame's width matches the canvas's width
+            canvas.itemconfig(canvas_window, width=canvas.winfo_width())
+
+        scrollable_frame.bind("<Configure>", _on_frame_configure)
+        
+        # Create a window in the canvas to hold the scrollable_frame
+        # Using anchor='n' means the top center of the window will be at (0,0) of the canvas,
+        # and we set the width of the window to match the canvas.
+        canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw") # Keeping "nw" for top-left alignment for the scrollable content
+
+        # Update the width of the canvas window when the canvas is resized
+        def _on_canvas_resize(event):
+            canvas.itemconfig(canvas_window, width=event.width)
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        canvas.bind('<Configure>', _on_canvas_resize)
+        
+        adocoes = carregar_dados(ADOCAO_FILE)
+        animais = carregar_dados(ANIMAIS_FILE) 
+        usuarios = carregar_dados(USUARIOS_FILE)
+        
+        # Se for admin, mostra todas as adoções, senão mostra apenas as do usuário
+        if self.usuario_logado.get('tipo') == 'admin':
+            minhas_adocoes = [a for a in adocoes if isinstance(a, dict)]
+            # Título do administrador centralizado
+            ttk.Label(scrollable_frame, text="VISÃO DO ADMINISTRADOR - TODAS AS ADOÇÕES", style='Title.TLabel', foreground='red').pack(pady=10, anchor=tk.CENTER)   
+        else:
+            minhas_adocoes = [a for a in adocoes if isinstance(a, dict) and a.get('email_adotante') == self.usuario_logado['email']]
         
         if not minhas_adocoes:
-            ttk.Label(self.main_frame, text="Você não possui adoções registradas.").pack(pady=20)
+            ttk.Label(scrollable_frame, text="Nenhuma adoção registrada.").pack(pady=20)
         else:
             for adocao in minhas_adocoes:
-                # Verificar se o animal existe
-                animal = next((a for a in animais if isinstance(a, dict) and a.get('id') == adocao.get('id_animal')), None)
+                # Usar as informações do animal que foram salvas no registro de adoção
+                info_animal = adocao.get('info_animal', {})
                 
-                if animal:
-                    frame = ttk.LabelFrame(self.main_frame, text=f"{animal.get('nome', 'N/A')} ({animal.get('tipo', 'N/A').capitalize()})")
-                    frame.pack(fill=tk.X, padx=20, pady=10)
-                    
-                    ttk.Label(frame, text=f"Data da adoção: {adocao.get('data', 'N/A')}").pack(anchor=tk.W)
-                    ttk.Label(frame, text=f"Status: {adocao.get('status', 'N/A')}").pack(anchor=tk.W)
-                    
-                    if 'relatorios' in adocao:
-                        ttk.Label(frame, text="Relatórios:").pack(anchor=tk.W)
-                        for relatorio in adocao['relatorios']:
-                            if isinstance(relatorio, dict):
-                                ttk.Label(frame, text=f"{relatorio.get('data', 'N/A')}: {relatorio.get('texto', 'N/A')}", 
-                                        wraplength=700).pack(anchor=tk.W)
-                    
+                # Obter informações do adotante
+                adotante = next((u for u in usuarios if isinstance(u, dict) and u.get('email') == adocao.get('email_adotante')), None)
+                nome_adotante = adotante.get('nome', 'N/A') if adotante else 'N/A'
+                
+                frame = ttk.LabelFrame(scrollable_frame, 
+                                     text=f"{info_animal.get('nome', 'N/A')} ({info_animal.get('tipo', 'N/A').capitalize()}) - Adotado por: {nome_adotante}")
+                frame.pack(fill=tk.X, padx=20, pady=10)
+                
+                # Mostrar informações detalhadas do animal (mantidas à esquerda para legibilidade)
+                info_frame = ttk.Frame(frame)
+                info_frame.pack(fill=tk.X, padx=10, pady=5)
+                
+                ttk.Label(info_frame, text=f"Raça: {info_animal.get('raca', 'N/A')}", width=20).pack(side=tk.LEFT, padx=5)
+                ttk.Label(info_frame, text=f"Características: {info_animal.get('caracteristicas', 'N/A')}").pack(side=tk.LEFT, padx=5)
+                
+                ttk.Label(frame, text=f"Data da adoção: {adocao.get('data', 'N/A')}").pack(anchor=tk.W, padx=10)
+                ttk.Label(frame, text=f"Status: {adocao.get('status', 'N/A')}").pack(anchor=tk.W, padx=10)
+                
+                if 'relatorios' in adocao:
+                    ttk.Label(frame, text="Relatórios:", font=('Arial', 10, 'bold')).pack(anchor=tk.W, padx=10, pady=(10, 0))
+                    for relatorio in adocao['relatorios']:
+                        if isinstance(relatorio, dict):
+                            rel_frame = ttk.Frame(frame, borderwidth=1, relief=tk.SOLID)
+                            rel_frame.pack(fill=tk.X, padx=10, pady=5)
+                            
+                            ttk.Label(rel_frame, 
+                                    text=f"{relatorio.get('data', 'N/A')} - {relatorio.get('autor', 'N/A')}:",
+                                    font=('Arial', 9, 'italic')).pack(anchor=tk.W)
+                            ttk.Label(rel_frame, 
+                                    text=relatorio.get('texto', 'N/A'),
+                                    wraplength=700).pack(anchor=tk.W)
+                
+                # Se for admin ou o dono da adoção, pode adicionar relatório
+                if self.usuario_logado.get('tipo') == 'admin' or adocao.get('email_adotante') == self.usuario_logado.get('email'):
                     ttk.Button(frame, text="Adicionar Relatório", 
                              command=lambda a=adocao: self.adicionar_relatorio(a)).pack(pady=5)
         
+        # Botão voltar fora do frame rolável
         ttk.Button(self.main_frame, text="Voltar", command=self.mostrar_menu_principal).pack(pady=20)
-    
+
     def adicionar_relatorio(self, adocao):
         texto = simpledialog.askstring("Novo Relatório", "Descreva como está sendo a adaptação:")
         if texto:
@@ -404,13 +713,14 @@ class AdotaPetzApp:
             
             adocao['relatorios'].append({
                 'data': datetime.now().strftime("%d/%m/%Y %H:%M"),
-                'texto': texto
+                'texto': texto,
+                'autor': self.usuario_logado.get('email')  # Registrar quem adicionou o relatório
             })
             
             # Atualizar arquivo
             todas_adocoes = carregar_dados(ADOCAO_FILE)
             for i, a in enumerate(todas_adocoes):
-                if isinstance(a, dict) and a.get('id_animal') == adocao.get('id_animal'):
+                if isinstance(a, dict) and a.get('id_animal') == adocao.get('id_animal') and a.get('email_adotante') == adocao.get('email_adotante'):
                     todas_adocoes[i] = adocao
                     break
             
