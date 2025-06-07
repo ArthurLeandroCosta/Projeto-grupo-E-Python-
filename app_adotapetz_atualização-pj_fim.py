@@ -634,9 +634,11 @@ class AdotaPetzApp:
 
         scrollable_frame.bind("<Configure>", _on_frame_configure)
         
-        # Create a window in the canvas to hold the scrollable_frame
-        # Using anchor='n' means the top center of the window will be at (0,0) of the canvas,
-        # and we set the width of the window to match the canvas.
+        # Para encontrar a adoção correta, precisamos do email do adotante, não do nome exibido na tabela
+        # Precisamos buscar o email do adotante a partir do nome, ou melhor, armazenar o email na tabela de adoções
+        # Por enquanto, vamos assumir que o email do adotante é o mesmo que o nome exibido na tabela (se for email)
+        # Melhoria: Adicionar o email do adotante como uma coluna oculta ou um atributo na Treeview
+        
         canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw") # Keeping "nw" for top-left alignment for the scrollable content
 
         # Update the width of the canvas window when the canvas is resized

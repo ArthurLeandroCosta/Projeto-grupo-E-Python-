@@ -1,2 +1,4 @@
 {'email': 'adm@gmail.com', 'senha': 'adm', 'nome': 'adm', 'telefone': 'adm', 'tipo': 'admin'}
 {'email': 'comun@gmail.com', 'senha': 'comun', 'nome': 'comun', 'telefone': 'comun', 'tipo': 'comum'}
+{'email': 'teste12', 'senha': 'teste12', 'nome': 'teste', 'telefone': '0000', 'tipo': 'admin'}
+{'email': 'testecomum', 'senha': 'teste', 'nome': 'teste', 'telefone': '0001', 'tipo': 'comum'}
